@@ -23,7 +23,14 @@ public class FadeController : MonoBehaviour
         cg.gameObject.SetActive(true);
         cg.interactable = true;
         cg.blocksRaycasts = true;
-        cg.DOFade(1, fadeDuration);
+
+        // Fade in to alpha 1
+        cg.DOFade(1, fadeDuration).OnComplete(() =>
+        {
+            // After fade in completes, fade out back to 0
+            FadeOut();
+        });
+
     }
     public void FadeOut()
     {

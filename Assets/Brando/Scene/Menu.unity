@@ -1855,7 +1855,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 66379d79f7bb3ef42982c2483799fe54, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sceneName: Game
+  sceneName: GameBrando
   timeToChangeScene: 0.5
   timeToReloadScene: 0.5
 --- !u!4 &900375111
@@ -2793,7 +2793,6 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 71fe7d1679aa93c4dac713fda38dad16, type: 2}
   - {fileID: 11400000, guid: 893a5ab82b5f6c8428455815dc2d8231, type: 2}
   - {fileID: 11400000, guid: 0a3cd91449d28cb468916c8f9de88711, type: 2}
-  clip: {fileID: 0}
 --- !u!4 &1483343820
 Transform:
   m_ObjectHideFlags: 0
