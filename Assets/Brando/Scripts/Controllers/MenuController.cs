@@ -11,6 +11,7 @@ public class MenuController : MonoBehaviour
     public void ChangeScene()
     {
         StartCoroutine(TimeToDelayChangeScene(sceneName));
+        FadeController.instance.FadeIn();
     }
     public void ChangeSceneByName(string name)
     {

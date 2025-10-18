@@ -19,8 +19,13 @@ public class CandyCupsUI : MonoBehaviour
     private bool isMixing = false;
     private bool isChoosing = false;
 
+    private Vector2 candyStartPos;
+
     void Start()
     {
+        // Guardamos la posición inicial del caramelo
+        candyStartPos = candy.anchoredPosition;
+
         startButton.onClick.AddListener(StartChoosingCup);
         resultText.text = "Haz clic en un vaso para esconder el caramelo.";
     }
@@ -30,13 +35,13 @@ public class CandyCupsUI : MonoBehaviour
         if (!isChoosing || isMixing) return;
 
         correctCup = index;
-        candy.SetParent(cups[index]);
-        candy.anchoredPosition = Vector2.zero;
-
-        resultText.text = "¡Caramelo escondido! Mezclando...";
         isChoosing = false;
 
-        StartCoroutine(MixCups());
+        DisableCupButtons();
+
+        resultText.text = "¡Caramelo escondido! Mezclando...";
+
+        StartCoroutine(MoveCandyToCup(index));
     }
 
     void StartChoosingCup()
@@ -44,6 +49,42 @@ public class CandyCupsUI : MonoBehaviour
         if (isMixing) return;
         resultText.text = "Elige un vaso para esconder el caramelo.";
         isChoosing = true;
+
+        for (int i = 0; i < cups.Length; i++)
+        {
+            Button btn = cups[i].GetComponent<Button>();
+            if (btn != null)
+            {
+                btn.interactable = true;
+                btn.onClick.RemoveAllListeners();
+                int index = i;
+                btn.onClick.AddListener(() => OnCupClicked(index));
+            }
+        }
+    }
+
+    IEnumerator MoveCandyToCup(int index)
+    {
+        Vector2 start = candy.anchoredPosition;
+        Vector2 end = cups[index].anchoredPosition;
+
+        float duration = 0.5f;
+        float t = 0f;
+
+        while (t < 1f)
+        {
+            t += Time.deltaTime / duration;
+            candy.anchoredPosition = Vector2.Lerp(start, end, t);
+            yield return null;
+        }
+
+        // Fijamos el caramelo dentro del vaso
+        candy.SetParent(cups[index]);
+        candy.anchoredPosition = Vector2.zero;
+
+        yield return new WaitForSeconds(0.3f);
+
+        StartCoroutine(MixCups());
     }
 
     IEnumerator MixCups()
@@ -79,11 +120,30 @@ public class CandyCupsUI : MonoBehaviour
 
     void EnableCupSelection()
     {
-        foreach (RectTransform cup in cups)
+        for (int i = 0; i < cups.Length; i++)
         {
-            Button btn = cup.GetComponent<Button>();
+            Button btn = cups[i].GetComponent<Button>();
             if (btn != null)
+            {
                 btn.interactable = true;
+                btn.onClick.RemoveAllListeners();
+                int index = i;
+                btn.onClick.AddListener(() => OnCupSelected(index));
+                btn.onClick.AddListener(() => DisableCupButtons());
+            }
+        }
+    }
+
+    void DisableCupButtons()
+    {
+        for (int i = 0; i < cups.Length; i++)
+        {
+            Button btn = cups[i].GetComponent<Button>();
+            if (btn != null)
+            {
+                btn.interactable = false;
+                btn.onClick.RemoveAllListeners();
+            }
         }
     }
 
@@ -91,15 +151,37 @@ public class CandyCupsUI : MonoBehaviour
     {
         if (isMixing || isChoosing) return;
 
+        // Mostrar el caramelo en el vaso correcto
         candy.SetParent(cups[correctCup]);
         candy.anchoredPosition = Vector2.zero;
 
         if (index == correctCup)
-            resultText.text = "¡Adivinaste!  Ganaste 5× caramelos.";
+            resultText.text = "¡Adivinaste! Ganaste 5× caramelos.";
         else
-            resultText.text = "Fallaste  El caramelo estaba en otro vaso.";
+            resultText.text = "Fallaste. El caramelo estaba en otro vaso.";
 
+        // Devolver el caramelo a su lugar original
+        StartCoroutine(MoveCandyBack());
+    }
+
+    IEnumerator MoveCandyBack()
+    {
+        // Sacamos el caramelo del vaso
         candy.SetParent(transform);
-        candy.anchoredPosition = Vector2.zero;
+
+        Vector2 start = candy.anchoredPosition;
+        Vector2 end = candyStartPos;
+
+        float duration = 0.5f;
+        float t = 0f;
+
+        while (t < 1f)
+        {
+            t += Time.deltaTime / duration;
+            candy.anchoredPosition = Vector2.Lerp(start, end, t);
+            yield return null;
+        }
+
+        candy.anchoredPosition = end;
     }
 }
