@@ -623,7 +623,7 @@ MonoBehaviour:
   timerText: {fileID: 282561392}
   triesText: {fileID: 1759599457}
   gameTime: 30
-  maxMistakes: 5
+  maxMistakes: 3
 --- !u!1 &1126335245
 GameObject:
   m_ObjectHideFlags: 0
