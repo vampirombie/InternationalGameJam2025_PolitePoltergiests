@@ -4,6 +4,8 @@ using System.Collections;
 
 public class CardsController : MonoBehaviour
 {
+    private MemoryGameManager gameManager;
+
     [SerializeField] Card_Memory cardPrefab;
     [SerializeField] Transform gridTransform;
     [SerializeField] Sprite[] sprites;
@@ -14,11 +16,15 @@ public class CardsController : MonoBehaviour
     private Card_Memory secondSelected;
     private bool canSelect = true;
 
+    public List<Card_Memory> cards = new List<Card_Memory>();
+
     private void Start()
     {
         PrepareSprites();
         CreateCards();
         StartCoroutine(ShowAllThenHide());
+        gameManager = Object.FindFirstObjectByType<MemoryGameManager>();
+
     }
 
     IEnumerator ShowAllThenHide()
@@ -48,7 +54,7 @@ public class CardsController : MonoBehaviour
         for (int i = 0; i < sprites.Length; i++)
         {
             spritePairs.Add(sprites[i]);
-            spritePairs.Add(sprites[i]); // duplicar correctamente
+            spritePairs.Add(sprites[i]);
         }
 
         ShuffleSprites(spritePairs);
@@ -62,8 +68,13 @@ public class CardsController : MonoBehaviour
             card.SetIconSprite(sp);
             card.controller = this;
             card.Hide();
+
+            cards.Add(card);
         }
+
+        Debug.Log($"Total de cartas generadas: {cards.Count}");
     }
+
 
     public void SetSelected(Card_Memory card)
     {
@@ -89,17 +100,30 @@ public class CardsController : MonoBehaviour
 
         if (firstSelected.iconSprite == secondSelected.iconSprite)
         {
-            // Emparejó, puedes dejar las cartas mostradas
+            gameManager.OnPairMatched();
+
+            firstSelected.GetComponent<UnityEngine.UI.Button>().interactable = false;
+            secondSelected.GetComponent<UnityEngine.UI.Button>().interactable = false;
+
+            firstSelected.isSelect = true;
+            secondSelected.isSelect = true;
         }
         else
         {
+            gameManager.OnPairMistake();
+
             firstSelected.Hide();
             secondSelected.Hide();
+
+            firstSelected.isSelect = false;
+            secondSelected.isSelect = false;
         }
 
         firstSelected = null;
         secondSelected = null;
         canSelect = true;
+
+        yield break;
     }
 
     void ShuffleSprites(List<Sprite> spriteList)
