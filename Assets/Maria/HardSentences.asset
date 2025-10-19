@@ -12,4 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4579d4c50dbdbfd41a31b5a164b9d071, type: 3}
   m_Name: HardSentences
   m_EditorClassIdentifier: 
-  sentences: []
+  sentences:
+  - 333
+  - 333
+  - 333
+  - 333
+  - 333

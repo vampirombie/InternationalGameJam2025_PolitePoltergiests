@@ -15,6 +15,7 @@ public class GameManager : SingletonPersistent<GameManager>
 
     [Header("Cards")]
     int cardsDifficulty = 1;
+    string chosenSentence;
     void Start()
     {
 
@@ -24,22 +25,28 @@ public class GameManager : SingletonPersistent<GameManager>
     {
 
     }
-     public void SelectedLevel()
+     public string GetSentenceByDifficulty(int currentLevel)
     {
-        if (sentenceDifficulty == 1)
+        switch (currentLevel)
         {
-            easyLevel.GetSentence();
+            case 1:
+               chosenSentence=  easyLevel.GetSentence();
+                break;
+            case 2:
+                chosenSentence=  mediumLevel.GetSentence();
+                break;
+            case 3:
+                chosenSentence = hardLevel.GetSentence();
+                break;
+            default:
+                chosenSentence = easyLevel.GetSentence();
+                break;
+        }
+        return chosenSentence;
+        
 
-        }
-        else if (sentenceDifficulty == 2)
-        {
-            mediumLevel.GetSentence();
-        }
-        else if (sentenceDifficulty == 3)
-        {
-            hardLevel.GetSentence();
-        }
     }
+    
     public void ReduceCandies(int betCandies)
     {
         candiesQuantity -= betCandies;

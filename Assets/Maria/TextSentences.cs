@@ -9,7 +9,7 @@ public class TextSentences : ScriptableObject
     public string GetSentence()
     {
         int getRandomSentence= Random.Range(0,sentences.Count);
-        Debug.Log(sentences[getRandomSentence]);
+        Debug.Log("sentence choosed " + sentences[getRandomSentence]);
         return sentences[getRandomSentence];
        
     }

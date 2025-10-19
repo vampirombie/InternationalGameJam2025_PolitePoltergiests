@@ -2,9 +2,6 @@
 using UnityEngine.UI;
 using TMPro;
 using System.Collections;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
 
 public class TypingChallenge : MonoBehaviour
 {
@@ -15,52 +12,59 @@ public class TypingChallenge : MonoBehaviour
     public TextMeshProUGUI attemptsText;
     public TextMeshProUGUI startCountdownText;
     public Button restartButton;
+    public Button nextLevelButton;
     public Button quitButton;
 
     [Header("Game Settings")]
-    [TextArea]
-    public string correctSentence = "El zorro rapido salta sobre el perro perezoso.";
-    public float timeLimit = 15f;
     public int maxAttempts = 2;
     public float startDelay = 3f;
+    private int maxLevels = 3;
+
+    [Header("Progressive Difficulty")]
+    public float baseTimeLimit = 20f;
+    public float timeReductionPerWin = 0.5f;
+    public float minTimeLimit = 5f;
+    private static int difficultyBonus = 0;
 
     [Header("Visual Settings")]
     public Gradient timeColorGradient;
     public float blinkSpeed = 2f;
 
+    // --- Variables privadas de estado ---
+    private string correctSentence;
+    private float timeLimit;
     private float timer;
     private int attemptsLeft;
     private string currentInput = "";
     private bool isPlaying = false;
-    private bool blinking = false;
     private bool timerStarted = false;
-    private bool gameStarted = false;
-
     private bool isRewinding = false;
     public float rewindSpeed = 0.05f;
 
+    private static int currentLevel = 1;
+
     void Start()
     {
-        if (timeColorGradient == null)
+        if (timeColorGradient == null || timeColorGradient.colorKeys.Length == 0)
         {
             GradientColorKey[] colorKey = new GradientColorKey[3];
-            colorKey[0].color = Color.green;
-            colorKey[0].time = 1.0f;
-            colorKey[1].color = Color.yellow;
-            colorKey[1].time = 0.5f;
-            colorKey[2].color = Color.red;
-            colorKey[2].time = 0.0f;
-
+            colorKey[0].color = Color.green; colorKey[0].time = 1.0f;
+            colorKey[1].color = Color.yellow; colorKey[1].time = 0.5f;
+            colorKey[2].color = Color.red; colorKey[2].time = 0.0f;
             GradientAlphaKey[] alphaKey = new GradientAlphaKey[1];
-            alphaKey[0].alpha = 1.0f;
-            alphaKey[0].time = 0.0f;
-
+            alphaKey[0].alpha = 1.0f; alphaKey[0].time = 0.0f;
             timeColorGradient = new Gradient();
             timeColorGradient.SetKeys(colorKey, alphaKey);
         }
 
         restartButton.onClick.AddListener(RestartGame);
-        quitButton.onClick.AddListener(RestartGame);
+        nextLevelButton.onClick.AddListener(GoToNextLevel);
+
+        if (targetText == null || playerText == null || timerText == null || attemptsText == null || startCountdownText == null || restartButton == null || nextLevelButton == null || quitButton == null)
+        {
+            Debug.LogError("¡ERROR! Una o más referencias de UI no están asignadas en el Inspector de TypingChallenge.");
+            return;
+        }
 
         StartGame();
     }
@@ -69,186 +73,154 @@ public class TypingChallenge : MonoBehaviour
     {
         if (!isPlaying || isRewinding) return;
 
-        if (!timerStarted && Input.anyKeyDown)
+        if (!timerStarted && Input.anyKeyDown && !Input.GetMouseButtonDown(0) && !Input.GetMouseButtonDown(1))
         {
             timerStarted = true;
-            gameStarted = true;
         }
 
         if (!timerStarted) return;
 
+        HandleTimer();
+        HandleInput();
+    }
+
+    private void HandleTimer()
+    {
         timer -= Time.deltaTime;
         timerText.text = $"Tiempo: {timer:F1}s";
-
         float t = Mathf.Clamp01(timer / timeLimit);
-        Color timeColor = timeColorGradient.Evaluate(t);
-        targetText.color = timeColor;
+        targetText.color = timeColorGradient.Evaluate(t);
+        if (t < 0.2f) targetText.alpha = Mathf.Lerp(0.3f, 1f, Mathf.PingPong(Time.time * blinkSpeed, 1f));
+        else targetText.alpha = 1f;
+        if (timer <= 0) GameOver("¡Se acabó el tiempo!");
+    }
 
-        if (t < 0.2f)
+    private void HandleInput()
+    {
+        if (Input.inputString.Length > 0)
         {
-            blinking = true;
-            float alpha = Mathf.PingPong(Time.time * blinkSpeed, 1f);
-            targetText.alpha = Mathf.Lerp(0.3f, 1f, alpha);
-        }
-        else
-        {
-            blinking = false;
-            targetText.alpha = 1f;
-        }
-
-        if (timer <= 0)
-        {
-            GameOver();
-            return;
-        }
-
-        foreach (char c in Input.inputString)
-        {
-            if (c == '\b')
+            foreach (char c in Input.inputString)
             {
-                if (currentInput.Length > 0)
-                    currentInput = currentInput.Substring(0, currentInput.Length - 1);
-            }
-            else if (c == '\n' || c == '\r') { }
-            else
-            {
-                currentInput += c;
-                if (!correctSentence.StartsWith(currentInput))
+                if (c == '\b') { if (currentInput.Length > 0) currentInput = currentInput.Substring(0, currentInput.Length - 1); }
+                else if (c != '\n' && c != '\r')
                 {
-                    FailAttempt();
-                    return;
+                    currentInput += c;
+                    if (!correctSentence.StartsWith(currentInput)) { FailAttempt(); return; }
                 }
             }
-        }
-
-        playerText.text = HighlightCorrectLetters(currentInput, correctSentence);
-
-        if (currentInput == correctSentence)
-        {
-            Win();
+            playerText.text = HighlightCorrectLetters(currentInput, correctSentence);
+            if (currentInput == correctSentence) Win();
         }
     }
 
-    string HighlightCorrectLetters(string input, string target)
-    {
-        string result = "";
-        int length = Mathf.Min(input.Length, target.Length);
-        for (int i = 0; i < length; i++)
-        {
-            if (input[i] == target[i])
-                result += $"<color=#00FF00>{target[i]}</color>";
-            else
-                result += $"<color=#FF0000>{target[i]}</color>";
-        }
-        if (input.Length < target.Length)
-            result += $"<color=#808080>{target.Substring(input.Length)}</color>";
-        return result;
-    }
+    string HighlightCorrectLetters(string i, string t) { return $"<color=#00FF00>{i}</color>" + (i.Length < t.Length ? $"<color=#808080>{t.Substring(i.Length)}</color>" : ""); }
 
-    string HighlightIncorrectRewind(string input, string target)
-    {
-        string result = "";
-        int length = Mathf.Min(input.Length, target.Length);
-        for (int i = 0; i < length; i++)
-        {
-            result += $"<color=#FF0000>{target[i]}</color>";
-        }
-        if (input.Length < target.Length)
-            result += $"<color=#808080>{target.Substring(input.Length)}</color>";
-        return result;
-    }
-
-    void FailAttempt()
-    {
-        isRewinding = true;
-        StartCoroutine(RewindInput());
-    }
+    void FailAttempt() { isRewinding = true; StartCoroutine(RewindInput()); }
 
     IEnumerator RewindInput()
     {
         while (currentInput.Length > 0)
         {
             currentInput = currentInput.Substring(0, currentInput.Length - 1);
-            playerText.text = HighlightIncorrectRewind(currentInput, correctSentence);
+            playerText.text = $"<color=#FF0000>{currentInput}</color><color=#808080>{correctSentence.Substring(currentInput.Length)}</color>";
             yield return new WaitForSeconds(rewindSpeed);
         }
-
         attemptsLeft--;
         attemptsText.text = $"Intentos: {attemptsLeft}";
+        isRewinding = false;
+        if (attemptsLeft <= 0) GameOver("¡Te quedaste sin intentos!");
+        else playerText.text = HighlightCorrectLetters("", correctSentence);
+    }
 
-        if (attemptsLeft <= 0)
-        {
-            GameOver();
-        }
-        else
-        {
-            playerText.text = "";
-            isRewinding = false;
-        }
+    IEnumerator StartCountdown()
+    {
+        isPlaying = false; timerStarted = false; isRewinding = false; currentInput = ""; timer = timeLimit;
+        targetText.text = correctSentence; targetText.color = Color.white; targetText.alpha = 1f;
+        playerText.text = HighlightCorrectLetters("", correctSentence);
+        attemptsText.text = $"Intentos: {attemptsLeft}";
+        timerText.text = $"Tiempo: {timer:F1}s";
+        startCountdownText.gameObject.SetActive(true);
+        for (int i = (int)startDelay; i > 0; i--) { startCountdownText.text = $"Comenzando en {i}..."; yield return new WaitForSeconds(1f); }
+        startCountdownText.text = "¡Ya!"; yield return new WaitForSeconds(0.5f);
+        startCountdownText.gameObject.SetActive(false);
+        isPlaying = true;
     }
 
     void Win()
     {
         isPlaying = false;
-        timerText.text = "¡Correcto!";
         targetText.color = Color.green;
         targetText.alpha = 1f;
-        quitButton.gameObject.SetActive(true);
+
+        difficultyBonus++;
+
+        if (currentLevel < maxLevels)
+        {
+            // Ganas un nivel intermedio (Nivel 1 o 2)
+            timerText.text = "¡Correcto!";
+            restartButton.gameObject.SetActive(false);
+            nextLevelButton.gameObject.SetActive(true);
+            quitButton.gameObject.SetActive(true);
+        }
+        else
+        {
+            // Ganas el último nivel (Nivel 3)
+            timerText.text = "¡Felicidades! ¡Has completado el juego!";
+            restartButton.gameObject.SetActive(false);
+            nextLevelButton.gameObject.SetActive(false);
+            quitButton.gameObject.SetActive(true);
+        }
     }
 
-    void GameOver()
+    void GameOver(string reason)
     {
         isPlaying = false;
-        timerText.text = "Fin del juego";
+        timerText.text = reason;
         targetText.color = Color.red;
         targetText.alpha = 1f;
+
         restartButton.gameObject.SetActive(true);
-    }
-
-    IEnumerator StartCountdown()
-    {
-        isPlaying = false;
-        timerStarted = false;
-        currentInput = "";
-        playerText.text = "";
-        targetText.text = correctSentence;
-        targetText.alpha = 1f;
-        targetText.color = Color.white;
-        timer = timeLimit;
-        attemptsText.text = $"Intentos: {attemptsLeft}";
-        startCountdownText.gameObject.SetActive(true);
-
-        for (int i = (int)startDelay; i > 0; i--)
-        {
-            startCountdownText.text = $"Comenzando en {i}...";
-            yield return new WaitForSeconds(1f);
-        }
-
-        startCountdownText.text = "¡Ya!";
-        yield return new WaitForSeconds(0.5f);
-        startCountdownText.gameObject.SetActive(false);
-        isPlaying = true;
-        timerStarted = false;
-        timerText.text = $"Tiempo: {timer:F1}s";
+        quitButton.gameObject.SetActive(true);
+        nextLevelButton.gameObject.SetActive(false);
     }
 
     public void RestartGame()
     {
-        StopAllCoroutines(); 
+        StopAllCoroutines();
         StartGame();
     }
 
+    public void GoToNextLevel()
+    {
+        currentLevel++;
+        StartGame();
+    }
+
+    
+
     public void StartGame()
     {
+        if (GameManager.Instance == null)
+        {
+            Debug.LogError("¡No se puede iniciar el juego! No se encuentra una instancia de GameManager en la escena.");
+            return;
+        }
+
+        correctSentence = GameManager.Instance.GetSentenceByDifficulty(currentLevel);
+        if (string.IsNullOrEmpty(correctSentence) || correctSentence.StartsWith("No hay frases"))
+        {
+            Debug.LogError($"¡No se pudo obtener una frase para el nivel {currentLevel}! Revisa la configuración de TextSentences en el GameManager.");
+            correctSentence = "Error: no se encontró una frase.";
+        }
+
+        timeLimit = Mathf.Max(baseTimeLimit - (difficultyBonus * timeReductionPerWin), minTimeLimit);
+
         restartButton.gameObject.SetActive(false);
+        nextLevelButton.gameObject.SetActive(false);
         quitButton.gameObject.SetActive(false);
 
         attemptsLeft = maxAttempts;
-
-        isRewinding = false;
-        currentInput = "";
-        playerText.text = "";
-
+        StopAllCoroutines();
         StartCoroutine(StartCountdown());
     }
 }

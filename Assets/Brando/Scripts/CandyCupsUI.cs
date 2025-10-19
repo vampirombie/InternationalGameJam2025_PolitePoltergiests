@@ -1,165 +1,200 @@
-﻿using System.Collections;
-using TMPro;
-using UnityEditor;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
+using System.Collections;
+using System.Collections.Generic;
+
+[System.Serializable]
+public class LevelConfig
+{
+    public int numberOfCups = 3;
+    public int mixCount = 5;
+    public float moveSpeed = 500f;
+}
 
 public class CandyCupsUI : MonoBehaviour
 {
-    [Header("Referencias UI")]
-    public RectTransform[] cups;
+    [Header("Configuración de Niveles")]
+    public LevelConfig[] levels;
+
+    [Header("Referencias de Prefabs y Contenedores")]
+    public GameObject cupPrefab;
+    public Transform cupsContainer;
     public RectTransform candy;
+
+    [Header("Referencias UI")]
     public Button startButton;
-    public Button restartButton; // Botón para "Empezar otra vez"
-    public Button quitButton;    // Botón para "Salir del juego"
+    public Button nextLevelButton;
+    public Button retryButton;
+    public Button restartGameButton;
+    public Button quitButton;
     public TMP_Text resultText;
 
-    [Header("Configuración")]
-    public float moveSpeed = 500f;
-    public int mixCount = 5;
-
-    private int correctCup = -1;
+    private List<RectTransform> activeCups = new List<RectTransform>();
+    private int correctCupIndex = -1; // Usaremos esto para saber dónde se escondió inicialmente
     private bool isMixing = false;
-    private bool isPlayerChoosing = false; // Renombrado para más claridad
+    private bool levelEnded = false;
 
-    private Vector2 candyStartPos;
-    private Vector2[] cupsStartPos; // Para guardar las posiciones iniciales de los vasos
+    private int currentLevel = 0;
+
+    private Vector2 candyInitialPosition;
+    private Transform candyInitialParent;
 
     void Start()
     {
-        // Guardamos las posiciones iniciales
-        candyStartPos = candy.anchoredPosition;
-        cupsStartPos = new Vector2[cups.Length];
-        for (int i = 0; i < cups.Length; i++)
-        {
-            cupsStartPos[i] = cups[i].anchoredPosition;
-        }
+        // Guardamos la posición y el padre original del caramelo una sola vez.
+        candyInitialParent = candy.parent;
+        candyInitialPosition = candy.anchoredPosition;
 
-        startButton.onClick.AddListener(StartChoosingCup);
-        restartButton.onClick.AddListener(StartGame);
-        quitButton.onClick.AddListener(StartGame);
-        StartGame();
+        // Asignamos una acción permanente al botón de salir (opcional).
+        // quitButton.onClick.AddListener(Application.Quit);
+
+        // Iniciamos el juego desde el primer nivel.
+        ConfigureLevel(0);
     }
 
-    // Función para iniciar y reiniciar el juego
-    void StartGame()
+    /// <summary>
+    /// Método central para configurar y limpiar un nivel específico.
+    /// Es la función más importante para reiniciar el estado del juego.
+    /// </summary>
+    /// <param name="levelIndex">El índice del nivel a cargar (0, 1, 2...).</param>
+    void ConfigureLevel(int levelIndex)
     {
-        // Ocultamos los botones de fin de juego
-        restartButton.gameObject.SetActive(false);
-        quitButton.gameObject.SetActive(false);
-        startButton.gameObject.SetActive(true);
+        currentLevel = Mathf.Clamp(levelIndex, 0, levels.Length - 1);
+        Debug.Log($"Configurando nivel: {currentLevel}");
 
-        resultText.text = "Haz clic en 'Empezar' y luego en un vaso para esconder el caramelo.";
-
-        // Reseteamos el estado
-        isMixing = false;
-        isPlayerChoosing = false;
-        correctCup = -1;
-
-        // Devolvemos el caramelo a su sitio
-        candy.SetParent(transform); // Aseguramos que el caramelo no sea hijo de un vaso
-        candy.anchoredPosition = candyStartPos;
-
-        // Devolvemos los vasos a su sitio
-        for (int i = 0; i < cups.Length; i++)
+        // ===== SOLUCIÓN CLAVE #1: RESCATAR AL CARAMELO =====
+        // Antes de destruir los vasos, devolvemos el caramelo a su estado original.
+        // Esto evita que sea destruido junto con el vaso que lo contenía.
+        if (candy != null)
         {
-            cups[i].anchoredPosition = cupsStartPos[i];
+            candy.gameObject.SetActive(true);
+            candy.SetParent(candyInitialParent);
+            candy.anchoredPosition = candyInitialPosition;
         }
+
+        // Reiniciamos los estados del juego para el nuevo nivel.
+        isMixing = false;
+        levelEnded = false;
+        correctCupIndex = -1;
+
+        // Limpiamos los vasos de la partida anterior.
+        ClearPreviousCups();
+
+        LevelConfig config = levels[currentLevel];
+        float containerWidth = cupsContainer.GetComponent<RectTransform>().rect.width;
+        float spacing = containerWidth / (config.numberOfCups + 1);
+
+        // Creamos e instanciamos los nuevos vasos.
+        for (int i = 0; i < config.numberOfCups; i++)
+        {
+            GameObject cupGO = Instantiate(cupPrefab, cupsContainer);
+            RectTransform cupRect = cupGO.GetComponent<RectTransform>();
+            cupRect.anchoredPosition = new Vector2((i + 1) * spacing - (containerWidth / 2), 0);
+            activeCups.Add(cupRect);
+        }
+
+        // ===== SOLUCIÓN CLAVE #2: GESTIONAR LISTENERS AQUÍ =====
+        // Limpiamos TODOS los listeners de los botones para evitar acciones incorrectas de rondas anteriores.
+        startButton.onClick.RemoveAllListeners();
+        nextLevelButton.onClick.RemoveAllListeners();
+        retryButton.onClick.RemoveAllListeners();
+        restartGameButton.onClick.RemoveAllListeners();
+
+        // Asignamos las acciones correctas a cada botón para esta nueva ronda.
+        startButton.onClick.AddListener(StartChoosingCup);
+        nextLevelButton.onClick.AddListener(OnNextLevelClicked);
+        retryButton.onClick.AddListener(OnRetryClicked);
+        restartGameButton.onClick.AddListener(OnRestartClicked);
+
+        // Configuramos la visibilidad inicial de los botones.
+        startButton.gameObject.SetActive(true);
+        nextLevelButton.gameObject.SetActive(false);
+        retryButton.gameObject.SetActive(false);
+        restartGameButton.gameObject.SetActive(false);
+        quitButton.gameObject.SetActive(false);
+
+        resultText.text = $"Nivel {currentLevel + 1}/{levels.Length}. Presiona 'Empezar'.";
 
         DisableCupButtons();
     }
 
-
     void StartChoosingCup()
     {
-        if (isMixing) return;
+        if (isMixing || levelEnded) return;
 
         startButton.gameObject.SetActive(false);
         resultText.text = "Elige un vaso para esconder el caramelo.";
-        isPlayerChoosing = true;
 
-        for (int i = 0; i < cups.Length; i++)
+        for (int i = 0; i < activeCups.Count; i++)
         {
-            Button btn = cups[i].GetComponent<Button>();
-            if (btn != null)
-            {
-                btn.interactable = true;
-                btn.onClick.RemoveAllListeners();
-                int index = i;
-                btn.onClick.AddListener(() => OnCupClickedToHide(index));
-            }
+            Button btn = activeCups[i].GetComponent<Button>();
+            btn.interactable = true;
+            btn.onClick.RemoveAllListeners();
+            int index = i;
+            btn.onClick.AddListener(() => OnCupClickedToHide(index));
         }
     }
 
     public void OnCupClickedToHide(int index)
     {
-        if (!isPlayerChoosing || isMixing) return;
+        if (isMixing) return;
 
-        correctCup = index;
-        isPlayerChoosing = false;
-
+        correctCupIndex = index;
         DisableCupButtons();
 
         resultText.text = "¡Caramelo escondido! Mezclando...";
-
-        StartCoroutine(MoveCandyToCup(index));
+        StartCoroutine(MoveCandyAndMix(index));
     }
 
-
-    IEnumerator MoveCandyToCup(int index)
+    IEnumerator MoveCandyAndMix(int cupIndex)
     {
-        Vector2 start = candy.anchoredPosition;
-        Vector2 end = cups[index].anchoredPosition;
+        // Animación para mover el caramelo hacia el vaso.
+        Vector2 startPos = candy.position;
+        Vector2 endPos = activeCups[cupIndex].position;
+        float t = 0;
 
-        float duration = 0.5f;
-        float t = 0f;
-
-        while (t < 1f)
+        while (t < 1)
         {
-            t += Time.deltaTime / duration;
-            candy.anchoredPosition = Vector2.Lerp(start, end, t);
+            t += Time.deltaTime * 2.5f;
+            candy.position = Vector2.Lerp(startPos, endPos, t);
             yield return null;
         }
 
-        // Fijamos el caramelo dentro del vaso
-        candy.SetParent(cups[index]);
-        candy.anchoredPosition = Vector2.zero;
+        // Hacemos el caramelo hijo del vaso para que se mueva con él.
+        candy.SetParent(activeCups[cupIndex]);
+        candy.anchoredPosition = Vector2.zero; // Centrado dentro del vaso.
+        candy.gameObject.SetActive(false); // Lo ocultamos visualmente.
+        yield return new WaitForSeconds(0.5f);
 
-        yield return new WaitForSeconds(0.3f);
-
-        StartCoroutine(MixCups());
-    }
-
-    IEnumerator MixCups()
-    {
         isMixing = true;
+        LevelConfig config = levels[currentLevel];
 
-        for (int i = 0; i < mixCount; i++)
+        // Mezclamos los vasos.
+        for (int i = 0; i < config.mixCount; i++)
         {
-            int a = Random.Range(0, cups.Length);
+            int a = Random.Range(0, activeCups.Count);
             int b;
-            do
+            do { b = Random.Range(0, activeCups.Count); } while (a == b);
+
+            Vector2 posA = activeCups[a].anchoredPosition;
+            Vector2 posB = activeCups[b].anchoredPosition;
+            float duration = Vector2.Distance(posA, posB) / config.moveSpeed;
+
+            float time = 0;
+            while (time < 1)
             {
-                b = Random.Range(0, cups.Length);
-            } while (a == b);
-
-            Vector2 posA = cups[a].anchoredPosition;
-            Vector2 posB = cups[b].anchoredPosition;
-
-            float distance = Vector2.Distance(posA, posB);
-            float duration = distance / moveSpeed;
-            float t = 0f;
-
-            while (t < 1f)
-            {
-                t += Time.deltaTime / duration;
-                cups[a].anchoredPosition = Vector2.Lerp(posA, posB, t);
-                cups[b].anchoredPosition = Vector2.Lerp(posB, posA, t);
+                time += Time.deltaTime / duration;
+                activeCups[a].anchoredPosition = Vector2.Lerp(posA, posB, time);
+                activeCups[b].anchoredPosition = Vector2.Lerp(posB, posA, time);
                 yield return null;
             }
-            // Aseguramos las posiciones finales para evitar imprecisiones
-            cups[a].anchoredPosition = posB;
-            cups[b].anchoredPosition = posA;
+
+            activeCups[a].anchoredPosition = posB;
+            activeCups[b].anchoredPosition = posA;
+
+            // Importante: Actualizamos la lista para que coincida con la nueva posición visual.
+            (activeCups[a], activeCups[b]) = (activeCups[b], activeCups[a]);
         }
 
         isMixing = false;
@@ -169,59 +204,143 @@ public class CandyCupsUI : MonoBehaviour
 
     void EnableCupSelectionToFind()
     {
-        for (int i = 0; i < cups.Length; i++)
+        for (int i = 0; i < activeCups.Count; i++)
         {
-            Button btn = cups[i].GetComponent<Button>();
-            if (btn != null)
-            {
-                btn.interactable = true;
-                btn.onClick.RemoveAllListeners();
-                int index = i;
-                // Le pasamos el RectTransform del vaso clickado
-                btn.onClick.AddListener(() => OnCupSelectedToFind(cups[index]));
-            }
+            Button btn = activeCups[i].GetComponent<Button>();
+            btn.interactable = true;
+            btn.onClick.RemoveAllListeners();
+            int index = i;
+            btn.onClick.AddListener(() => OnCupSelectedToFind(index));
         }
     }
 
-    public void OnCupSelectedToFind(RectTransform selectedCup)
+    public void OnCupSelectedToFind(int selectedIndex)
     {
-        if (isMixing || isPlayerChoosing) return;
+        if (isMixing || levelEnded) return;
 
+        levelEnded = true;
         DisableCupButtons();
 
-        if (selectedCup == cups[correctCup])
+        // Iniciamos la corrutina para levantar el vaso y revelar el resultado.
+        StartCoroutine(RevealCup(selectedIndex));
+    }
+
+    // === MEJORA: Corrutina para animar el levantamiento de los vasos ===
+    IEnumerator RevealCup(int selectedIndex)
+    {
+        RectTransform selectedCup = activeCups[selectedIndex];
+        Vector2 originalSelectedPos = selectedCup.anchoredPosition;
+        Vector2 raisedSelectedPos = originalSelectedPos + new Vector2(0, 100f);
+
+        // Buscamos cuál es el vaso que realmente tiene el caramelo.
+        int finalCorrectIndex = -1;
+        for (int i = 0; i < activeCups.Count; i++)
         {
-            resultText.text = "¡Adivinaste! Ganaste 5× caramelos.";
+            if (activeCups[i].childCount > 0) // El vaso con el caramelo tendrá un hijo.
+            {
+                finalCorrectIndex = i;
+                break;
+            }
+        }
+
+        // Hacemos visible el caramelo de nuevo, pero aún debajo del vaso.
+        candy.gameObject.SetActive(true);
+
+        // Levantamos el vaso que eligió el jugador.
+        float time = 0;
+        while (time < 0.25f)
+        {
+            selectedCup.anchoredPosition = Vector2.Lerp(originalSelectedPos, raisedSelectedPos, time / 0.25f);
+            time += Time.deltaTime;
+            yield return null;
+        }
+        selectedCup.anchoredPosition = raisedSelectedPos;
+
+        yield return new WaitForSeconds(0.5f);
+
+        // Si el jugador se equivocó, levantamos también el vaso correcto.
+        if (selectedIndex != finalCorrectIndex)
+        {
+            RectTransform correctCup = activeCups[finalCorrectIndex];
+            Vector2 originalCorrectPos = correctCup.anchoredPosition;
+            Vector2 raisedCorrectPos = originalCorrectPos + new Vector2(0, 100f);
+
+            time = 0;
+            while (time < 0.25f)
+            {
+                correctCup.anchoredPosition = Vector2.Lerp(originalCorrectPos, raisedCorrectPos, time / 0.25f);
+                time += Time.deltaTime;
+                yield return null;
+            }
+            correctCup.anchoredPosition = raisedCorrectPos;
+        }
+
+        yield return new WaitForSeconds(1f);
+
+        // Finalmente, mostramos el resultado.
+        if (selectedIndex == finalCorrectIndex)
+            HandleWin();
+        else
+            HandleLose();
+    }
+
+
+    void HandleWin()
+    {
+        resultText.text = $"¡Correcto! Nivel {currentLevel + 1} superado.";
+
+        if (currentLevel >= levels.Length - 1)
+        {
+            resultText.text = "¡Felicidades! ¡Completaste todos los niveles!";
+            restartGameButton.gameObject.SetActive(true);
         }
         else
         {
-            resultText.text = "Fallaste. El caramelo estaba en otro vaso.";
+            nextLevelButton.gameObject.SetActive(true);
         }
-
-        candy.SetParent(cups[correctCup]);
-        candy.anchoredPosition = Vector2.zero;
-
-        StartCoroutine(ShowEndGameButtonsAfterDelay(1.5f));
-    }
-
-    IEnumerator ShowEndGameButtonsAfterDelay(float delay)
-    {
-        yield return new WaitForSeconds(delay);
-        restartButton.gameObject.SetActive(true);
         quitButton.gameObject.SetActive(true);
     }
 
+    void HandleLose()
+    {
+        resultText.text = $"¡Incorrecto! Inténtalo de nuevo en el Nivel {currentLevel + 1}.";
+        retryButton.gameObject.SetActive(true);
+        restartGameButton.gameObject.SetActive(true); // Permitir reiniciar también al perder.
+        quitButton.gameObject.SetActive(true);
+    }
+
+    void OnNextLevelClicked()
+    {
+        ConfigureLevel(currentLevel + 1);
+    }
+
+    void OnRetryClicked()
+    {
+        ConfigureLevel(currentLevel);
+    }
+
+    void OnRestartClicked()
+    {
+        ConfigureLevel(0);
+    }
 
     void DisableCupButtons()
     {
-        for (int i = 0; i < cups.Length; i++)
+        foreach (var cup in activeCups)
         {
-            Button btn = cups[i].GetComponent<Button>();
-            if (btn != null)
-            {
-                btn.interactable = false;
-            }
+            Button btn = cup.GetComponent<Button>();
+            if (btn != null) btn.interactable = false;
         }
     }
-    
+
+    void ClearPreviousCups()
+    {
+        // Este bucle destruirá todos los vasos.
+        // Por eso es CRÍTICO haber rescatado al caramelo antes.
+        foreach (Transform child in cupsContainer)
+        {
+            Destroy(child.gameObject);
+        }
+        activeCups.Clear();
+    }
 }

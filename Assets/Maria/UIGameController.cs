@@ -30,7 +30,7 @@ public class UIGameController : MonoBehaviour
 
     void Update()
     {
-        if (currentDoor != 0 && Input.GetKeyDown(KeyCode.E))
+        if (currentDoor != 0 && Input.GetKeyDown(KeyCode.Alpha1))
         {
             ActivateMinigame(currentDoor);
             PanelCameramove.SetActive(false);
