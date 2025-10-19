@@ -1152,7 +1152,7 @@ Light:
   m_Enabled: 1
   serializedVersion: 11
   m_Type: 1
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0, g: 0, b: 0, a: 1}
   m_Intensity: 1
   m_Range: 10
   m_SpotAngle: 30
@@ -1215,13 +1215,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 426961668}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.43739784, y: -0.43553382, z: -0.14412424, w: -0.77344793}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: -0.67128414, y: 0.4433596, z: -0.4511188, w: -0.3863959}
+  m_LocalPosition: {x: -1.8, y: 0.3, z: 1.9}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: -53.336, y: -293.488, z: -735.349}
+  m_LocalEulerAnglesHint: {x: 66.748, y: -221.781, z: -501.339}
 --- !u!1 &443177903
 GameObject:
   m_ObjectHideFlags: 0
@@ -1737,7 +1737,6 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_text: 'Minijuego2
-
 
 '
   m_isRightToLeft: 0
@@ -2369,7 +2368,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2774220344278030320, guid: 76575390e13957648ae087c781b94cc5, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -3.836108
+      value: -7
       objectReference: {fileID: 0}
     - target: {fileID: 2774220344278030320, guid: 76575390e13957648ae087c781b94cc5, type: 3}
       propertyPath: m_LocalPosition.z
