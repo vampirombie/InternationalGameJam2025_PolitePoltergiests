@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using TMPro;
+using Unity.VisualScripting;
+using UnityEngine;
 
 public class UIGameController : MonoBehaviour
 {
@@ -6,6 +8,10 @@ public class UIGameController : MonoBehaviour
     [SerializeField] GameObject cupMinigame;
     [SerializeField] GameObject cardMinigame;
     [SerializeField] GameObject PanelCameramove;
+    [SerializeField] GameObject pressPanel;
+    [SerializeField] GameObject GameOver;
+
+    [SerializeField] TextMeshProUGUI candies;
 
     private int currentDoor = 0;
 
@@ -13,12 +19,16 @@ public class UIGameController : MonoBehaviour
     {
         PlayerHands.OnDoorTouched += HandleDoorTouched;
         PlayerHands.OnDoorExit += HandleDoorExit;
+        PlayerHands.OnDoorEnter += ShowPressPanel;
+        PlayerHands.OnDoorExit += HidePressPanel;
     }
 
     private void OnDisable()
     {
         PlayerHands.OnDoorTouched -= HandleDoorTouched;
         PlayerHands.OnDoorExit -= HandleDoorExit;
+        PlayerHands.OnDoorEnter -= ShowPressPanel;
+        PlayerHands.OnDoorExit -= HidePressPanel;
     }
 
     void Start()
@@ -26,15 +36,24 @@ public class UIGameController : MonoBehaviour
         typeMinigame.SetActive(false);
         cupMinigame.SetActive(false);
         cardMinigame.SetActive(false);
+        pressPanel.SetActive(false);
     }
-
+   public  void ShowPressPanel()
+    {
+        pressPanel.SetActive(true);
+    }
+    void HidePressPanel()
+    {
+        pressPanel.SetActive(false);
+    }
     void Update()
     {
+        candies.text = " Candies: " + GameManager.Instance.candiesQuantity.ToString();
         if (currentDoor != 0 && Input.GetKeyDown(KeyCode.Alpha1))
         {
             ActivateMinigame(currentDoor);
             PanelCameramove.SetActive(false);
-            // Ya no borramos currentDoor aquí
+  
         }
     }
 
@@ -49,7 +68,7 @@ public class UIGameController : MonoBehaviour
         currentDoor = 0;
         Debug.Log("Te alejaste de la puerta.");
     }
-
+    
     void ActivateMinigame(int doorNumber)
     {
         switch (doorNumber)

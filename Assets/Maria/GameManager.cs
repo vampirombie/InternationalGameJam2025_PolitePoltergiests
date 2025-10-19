@@ -9,7 +9,7 @@ public class GameManager : SingletonPersistent<GameManager>
     [SerializeField] TextSentences mediumLevel;
     [SerializeField] TextSentences hardLevel;
 
-    int candiesQuantity = 0;
+    public int candiesQuantity = 5;
     [Header("Cups")]
     int cupsDifficulty = 1;
 
@@ -23,7 +23,10 @@ public class GameManager : SingletonPersistent<GameManager>
                 
     void Update()
     {
-
+        if(candiesQuantity <=0)
+        {
+            Debug.Log("Game Over");
+        }
     }
      public string GetSentenceByDifficulty(int currentLevel)
     {
@@ -46,7 +49,7 @@ public class GameManager : SingletonPersistent<GameManager>
         
 
     }
-    
+
     public void ReduceCandies(int betCandies)
     {
         candiesQuantity -= betCandies;

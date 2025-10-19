@@ -5,23 +5,26 @@ public class PlayerHands : MonoBehaviour
 {
     public static event Action<int> OnDoorTouched; // enviamos número de puerta
     public static event Action OnDoorExit;
-
+    public static event Action OnDoorEnter;
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Door1"))
         {
          //   Debug.Log("Player touched Door 1");
             OnDoorTouched?.Invoke(1);
+            OnDoorEnter?.Invoke();
         }
         else if (other.CompareTag("Door2"))
         {
            // Debug.Log("Player touched Door 2");
             OnDoorTouched?.Invoke(2);
+            OnDoorEnter?.Invoke();
         }
         else if (other.CompareTag("Door3"))
         {
             //Debug.Log("Player touched Door 3");
             OnDoorTouched?.Invoke(3);
+            OnDoorEnter?.Invoke();
         }
     }
 

@@ -6,6 +6,12 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/Brando/Scene/GameBrando.unity
+    guid: 34caf085e12d0a34786c24805c1e6447
+  - enabled: 1
+    path: Assets/Brando/Scene/Menu.unity
+    guid: 81f36a3e484ace84d86656520560fbc2
+  - enabled: 0
     path: Assets/Scenes/SampleScene.unity
     guid: 99c9720ab356a0642a771bea13969a05
   m_configObjects:
