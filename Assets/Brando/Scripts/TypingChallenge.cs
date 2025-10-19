@@ -1,6 +1,10 @@
 ﻿using UnityEngine;
+using UnityEngine.UI;
 using TMPro;
 using System.Collections;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 public class TypingChallenge : MonoBehaviour
 {
@@ -10,6 +14,8 @@ public class TypingChallenge : MonoBehaviour
     public TextMeshProUGUI timerText;
     public TextMeshProUGUI attemptsText;
     public TextMeshProUGUI startCountdownText;
+    public Button restartButton;
+    public Button quitButton;
 
     [Header("Game Settings")]
     [TextArea]
@@ -30,6 +36,9 @@ public class TypingChallenge : MonoBehaviour
     private bool timerStarted = false;
     private bool gameStarted = false;
 
+    private bool isRewinding = false;
+    public float rewindSpeed = 0.05f;
+
     void Start()
     {
         if (timeColorGradient == null)
@@ -41,21 +50,24 @@ public class TypingChallenge : MonoBehaviour
             colorKey[1].time = 0.5f;
             colorKey[2].color = Color.red;
             colorKey[2].time = 0.0f;
+
             GradientAlphaKey[] alphaKey = new GradientAlphaKey[1];
             alphaKey[0].alpha = 1.0f;
             alphaKey[0].time = 0.0f;
+
             timeColorGradient = new Gradient();
             timeColorGradient.SetKeys(colorKey, alphaKey);
         }
 
-        attemptsLeft = maxAttempts;
-        attemptsText.text = $"Intentos: {attemptsLeft}";
-        StartCoroutine(StartCountdown());
+        restartButton.onClick.AddListener(RestartGame);
+        quitButton.onClick.AddListener(RestartGame);
+
+        StartGame();
     }
 
     void Update()
     {
-        if (!isPlaying) return;
+        if (!isPlaying || isRewinding) return;
 
         if (!timerStarted && Input.anyKeyDown)
         {
@@ -63,11 +75,11 @@ public class TypingChallenge : MonoBehaviour
             gameStarted = true;
         }
 
-        if (!timerStarted)
-            return;
+        if (!timerStarted) return;
 
         timer -= Time.deltaTime;
         timerText.text = $"Tiempo: {timer:F1}s";
+
         float t = Mathf.Clamp01(timer / timeLimit);
         Color timeColor = timeColorGradient.Evaluate(t);
         targetText.color = timeColor;
@@ -97,9 +109,7 @@ public class TypingChallenge : MonoBehaviour
                 if (currentInput.Length > 0)
                     currentInput = currentInput.Substring(0, currentInput.Length - 1);
             }
-            else if (c == '\n' || c == '\r')
-            {
-            }
+            else if (c == '\n' || c == '\r') { }
             else
             {
                 currentInput += c;
@@ -112,6 +122,7 @@ public class TypingChallenge : MonoBehaviour
         }
 
         playerText.text = HighlightCorrectLetters(currentInput, correctSentence);
+
         if (currentInput == correctSentence)
         {
             Win();
@@ -134,27 +145,55 @@ public class TypingChallenge : MonoBehaviour
         return result;
     }
 
+    string HighlightIncorrectRewind(string input, string target)
+    {
+        string result = "";
+        int length = Mathf.Min(input.Length, target.Length);
+        for (int i = 0; i < length; i++)
+        {
+            result += $"<color=#FF0000>{target[i]}</color>";
+        }
+        if (input.Length < target.Length)
+            result += $"<color=#808080>{target.Substring(input.Length)}</color>";
+        return result;
+    }
+
     void FailAttempt()
     {
-        isPlaying = false;
-        timerStarted = false;
+        isRewinding = true;
+        StartCoroutine(RewindInput());
+    }
+
+    IEnumerator RewindInput()
+    {
+        while (currentInput.Length > 0)
+        {
+            currentInput = currentInput.Substring(0, currentInput.Length - 1);
+            playerText.text = HighlightIncorrectRewind(currentInput, correctSentence);
+            yield return new WaitForSeconds(rewindSpeed);
+        }
+
         attemptsLeft--;
+        attemptsText.text = $"Intentos: {attemptsLeft}";
+
         if (attemptsLeft <= 0)
         {
             GameOver();
         }
         else
         {
-            StartCoroutine(RestartRoundWithCountdown());
+            playerText.text = "";
+            isRewinding = false;
         }
     }
 
     void Win()
     {
         isPlaying = false;
-        timerText.text = "Correcto!";
+        timerText.text = "¡Correcto!";
         targetText.color = Color.green;
         targetText.alpha = 1f;
+        quitButton.gameObject.SetActive(true);
     }
 
     void GameOver()
@@ -163,6 +202,7 @@ public class TypingChallenge : MonoBehaviour
         timerText.text = "Fin del juego";
         targetText.color = Color.red;
         targetText.alpha = 1f;
+        restartButton.gameObject.SetActive(true);
     }
 
     IEnumerator StartCountdown()
@@ -177,12 +217,14 @@ public class TypingChallenge : MonoBehaviour
         timer = timeLimit;
         attemptsText.text = $"Intentos: {attemptsLeft}";
         startCountdownText.gameObject.SetActive(true);
+
         for (int i = (int)startDelay; i > 0; i--)
         {
             startCountdownText.text = $"Comenzando en {i}...";
             yield return new WaitForSeconds(1f);
         }
-        startCountdownText.text = "Ya!";
+
+        startCountdownText.text = "¡Ya!";
         yield return new WaitForSeconds(0.5f);
         startCountdownText.gameObject.SetActive(false);
         isPlaying = true;
@@ -190,25 +232,23 @@ public class TypingChallenge : MonoBehaviour
         timerText.text = $"Tiempo: {timer:F1}s";
     }
 
-    IEnumerator RestartRoundWithCountdown()
+    public void RestartGame()
     {
-        isPlaying = false;
-        timerStarted = false;
+        StopAllCoroutines(); 
+        StartGame();
+    }
+
+    void StartGame()
+    {
+        restartButton.gameObject.SetActive(false);
+        quitButton.gameObject.SetActive(false);
+
+        attemptsLeft = maxAttempts;
+
+        isRewinding = false;
         currentInput = "";
         playerText.text = "";
-        targetText.alpha = 1f;
-        targetText.color = Color.white;
-        attemptsText.text = $"Intentos: {attemptsLeft}";
-        startCountdownText.gameObject.SetActive(true);
-        for (int i = (int)startDelay; i > 0; i--)
-        {
-            startCountdownText.text = $"Comenzando en {i}...";
-            yield return new WaitForSeconds(1f);
-        }
-        startCountdownText.text = "Ya!";
-        yield return new WaitForSeconds(0.5f);
-        startCountdownText.gameObject.SetActive(false);
-        isPlaying = true;
-        timerStarted = false;
+
+        StartCoroutine(StartCountdown());
     }
 }

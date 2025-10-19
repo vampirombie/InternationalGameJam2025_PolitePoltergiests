@@ -1,7 +1,8 @@
-﻿using UnityEngine;
-using UnityEngine.UI;
+﻿using System.Collections;
 using TMPro;
-using System.Collections;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.UI;
 
 public class CandyCupsUI : MonoBehaviour
 {
@@ -9,6 +10,8 @@ public class CandyCupsUI : MonoBehaviour
     public RectTransform[] cups;
     public RectTransform candy;
     public Button startButton;
+    public Button restartButton; // Botón para "Empezar otra vez"
+    public Button quitButton;    // Botón para "Salir del juego"
     public TMP_Text resultText;
 
     [Header("Configuración")]
@@ -17,38 +20,63 @@ public class CandyCupsUI : MonoBehaviour
 
     private int correctCup = -1;
     private bool isMixing = false;
-    private bool isChoosing = false;
+    private bool isPlayerChoosing = false; // Renombrado para más claridad
 
     private Vector2 candyStartPos;
+    private Vector2[] cupsStartPos; // Para guardar las posiciones iniciales de los vasos
 
     void Start()
     {
-        // Guardamos la posición inicial del caramelo
+        // Guardamos las posiciones iniciales
         candyStartPos = candy.anchoredPosition;
+        cupsStartPos = new Vector2[cups.Length];
+        for (int i = 0; i < cups.Length; i++)
+        {
+            cupsStartPos[i] = cups[i].anchoredPosition;
+        }
 
         startButton.onClick.AddListener(StartChoosingCup);
-        resultText.text = "Haz clic en un vaso para esconder el caramelo.";
+        restartButton.onClick.AddListener(StartGame);
+        quitButton.onClick.AddListener(StartGame);
+        StartGame();
     }
 
-    public void OnCupClicked(int index)
+    // Función para iniciar y reiniciar el juego
+    void StartGame()
     {
-        if (!isChoosing || isMixing) return;
+        // Ocultamos los botones de fin de juego
+        restartButton.gameObject.SetActive(false);
+        quitButton.gameObject.SetActive(false);
+        startButton.gameObject.SetActive(true);
 
-        correctCup = index;
-        isChoosing = false;
+        resultText.text = "Haz clic en 'Empezar' y luego en un vaso para esconder el caramelo.";
+
+        // Reseteamos el estado
+        isMixing = false;
+        isPlayerChoosing = false;
+        correctCup = -1;
+
+        // Devolvemos el caramelo a su sitio
+        candy.SetParent(transform); // Aseguramos que el caramelo no sea hijo de un vaso
+        candy.anchoredPosition = candyStartPos;
+
+        // Devolvemos los vasos a su sitio
+        for (int i = 0; i < cups.Length; i++)
+        {
+            cups[i].anchoredPosition = cupsStartPos[i];
+        }
 
         DisableCupButtons();
-
-        resultText.text = "¡Caramelo escondido! Mezclando...";
-
-        StartCoroutine(MoveCandyToCup(index));
     }
+
 
     void StartChoosingCup()
     {
         if (isMixing) return;
+
+        startButton.gameObject.SetActive(false);
         resultText.text = "Elige un vaso para esconder el caramelo.";
-        isChoosing = true;
+        isPlayerChoosing = true;
 
         for (int i = 0; i < cups.Length; i++)
         {
@@ -58,10 +86,25 @@ public class CandyCupsUI : MonoBehaviour
                 btn.interactable = true;
                 btn.onClick.RemoveAllListeners();
                 int index = i;
-                btn.onClick.AddListener(() => OnCupClicked(index));
+                btn.onClick.AddListener(() => OnCupClickedToHide(index));
             }
         }
     }
+
+    public void OnCupClickedToHide(int index)
+    {
+        if (!isPlayerChoosing || isMixing) return;
+
+        correctCup = index;
+        isPlayerChoosing = false;
+
+        DisableCupButtons();
+
+        resultText.text = "¡Caramelo escondido! Mezclando...";
+
+        StartCoroutine(MoveCandyToCup(index));
+    }
+
 
     IEnumerator MoveCandyToCup(int index)
     {
@@ -94,8 +137,11 @@ public class CandyCupsUI : MonoBehaviour
         for (int i = 0; i < mixCount; i++)
         {
             int a = Random.Range(0, cups.Length);
-            int b = Random.Range(0, cups.Length);
-            if (a == b) continue;
+            int b;
+            do
+            {
+                b = Random.Range(0, cups.Length);
+            } while (a == b);
 
             Vector2 posA = cups[a].anchoredPosition;
             Vector2 posB = cups[b].anchoredPosition;
@@ -111,14 +157,17 @@ public class CandyCupsUI : MonoBehaviour
                 cups[b].anchoredPosition = Vector2.Lerp(posB, posA, t);
                 yield return null;
             }
+            // Aseguramos las posiciones finales para evitar imprecisiones
+            cups[a].anchoredPosition = posB;
+            cups[b].anchoredPosition = posA;
         }
 
         isMixing = false;
         resultText.text = "¿Dónde está el caramelo?";
-        EnableCupSelection();
+        EnableCupSelectionToFind();
     }
 
-    void EnableCupSelection()
+    void EnableCupSelectionToFind()
     {
         for (int i = 0; i < cups.Length; i++)
         {
@@ -128,11 +177,40 @@ public class CandyCupsUI : MonoBehaviour
                 btn.interactable = true;
                 btn.onClick.RemoveAllListeners();
                 int index = i;
-                btn.onClick.AddListener(() => OnCupSelected(index));
-                btn.onClick.AddListener(() => DisableCupButtons());
+                // Le pasamos el RectTransform del vaso clickado
+                btn.onClick.AddListener(() => OnCupSelectedToFind(cups[index]));
             }
         }
     }
+
+    public void OnCupSelectedToFind(RectTransform selectedCup)
+    {
+        if (isMixing || isPlayerChoosing) return;
+
+        DisableCupButtons();
+
+        if (selectedCup == cups[correctCup])
+        {
+            resultText.text = "¡Adivinaste! Ganaste 5× caramelos.";
+        }
+        else
+        {
+            resultText.text = "Fallaste. El caramelo estaba en otro vaso.";
+        }
+
+        candy.SetParent(cups[correctCup]);
+        candy.anchoredPosition = Vector2.zero;
+
+        StartCoroutine(ShowEndGameButtonsAfterDelay(1.5f));
+    }
+
+    IEnumerator ShowEndGameButtonsAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        restartButton.gameObject.SetActive(true);
+        quitButton.gameObject.SetActive(true);
+    }
+
 
     void DisableCupButtons()
     {
@@ -142,46 +220,8 @@ public class CandyCupsUI : MonoBehaviour
             if (btn != null)
             {
                 btn.interactable = false;
-                btn.onClick.RemoveAllListeners();
             }
         }
     }
-
-    public void OnCupSelected(int index)
-    {
-        if (isMixing || isChoosing) return;
-
-        // Mostrar el caramelo en el vaso correcto
-        candy.SetParent(cups[correctCup]);
-        candy.anchoredPosition = Vector2.zero;
-
-        if (index == correctCup)
-            resultText.text = "¡Adivinaste! Ganaste 5× caramelos.";
-        else
-            resultText.text = "Fallaste. El caramelo estaba en otro vaso.";
-
-        // Devolver el caramelo a su lugar original
-        StartCoroutine(MoveCandyBack());
-    }
-
-    IEnumerator MoveCandyBack()
-    {
-        // Sacamos el caramelo del vaso
-        candy.SetParent(transform);
-
-        Vector2 start = candy.anchoredPosition;
-        Vector2 end = candyStartPos;
-
-        float duration = 0.5f;
-        float t = 0f;
-
-        while (t < 1f)
-        {
-            t += Time.deltaTime / duration;
-            candy.anchoredPosition = Vector2.Lerp(start, end, t);
-            yield return null;
-        }
-
-        candy.anchoredPosition = end;
-    }
+    
 }
