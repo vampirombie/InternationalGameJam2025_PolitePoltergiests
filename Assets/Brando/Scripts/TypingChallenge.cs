@@ -238,7 +238,7 @@ public class TypingChallenge : MonoBehaviour
         StartGame();
     }
 
-    void StartGame()
+    public void StartGame()
     {
         restartButton.gameObject.SetActive(false);
         quitButton.gameObject.SetActive(false);
