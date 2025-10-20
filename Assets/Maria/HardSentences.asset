@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: HardSentences
   m_EditorClassIdentifier: 
   sentences:
-  - 333
-  - 333
-  - 333
-  - 333
-  - 333
+  - The hallway lights flicker as you approach the next door
+  - I think the candy is looking back at me
+  - "You shouldn\u2019t have knocked on this door"
+  - "Behind every smile, there\u2019s something hungry."
+  - The shadows whisper your name again and again
