@@ -53,7 +53,8 @@ public class UIGameController : MonoBehaviour
         {
             ActivateMinigame(currentDoor);
             PanelCameramove.SetActive(false);
-  
+            pressPanel.SetActive(false);
+
         }
     }
 
@@ -84,6 +85,7 @@ public class UIGameController : MonoBehaviour
                 break;
             case 3:
                 cardMinigame.SetActive(true);
+                //cardMinigame.GetComponent<MemoryGameManager>().StartGame(1);
                 Debug.Log("Minijuego de cartas activado.");
                 break;
         }

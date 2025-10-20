@@ -937,11 +937,11 @@ PlayerSettings:
   captureStartupLogs: {}
   activeInputHandler: 2
   windowsGamepadBackendHint: 0
-  cloudProjectId: 732c171b-3b0a-4743-9acf-b450c22f1929
+  cloudProjectId: 9e8c8987-7edd-4436-be47-77640a14b5de
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: Jam_International
-  organizationId: xzjesusxz123
+  projectName: My project 2025-10-18_19-16-48
+  organizationId: unity_0e371f3589f55be3200b
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0
   hmiLoadingImage: {fileID: 0}

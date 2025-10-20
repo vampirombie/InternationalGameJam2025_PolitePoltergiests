@@ -25,7 +25,7 @@ public class GameManager : SingletonPersistent<GameManager>
     {
         if(candiesQuantity <=0)
         {
-            Debug.Log("Game Over");
+            Debug.Log("Game Over");//
         }
     }
      public string GetSentenceByDifficulty(int currentLevel)

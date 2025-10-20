@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections.Generic;
 using System.Collections;
 
@@ -14,17 +14,34 @@ public class CardsController : MonoBehaviour
 
     private Card_Memory firstSelected;
     private Card_Memory secondSelected;
-    private bool canSelect = true;
+    private bool canSelect = false;
 
     public List<Card_Memory> cards = new List<Card_Memory>();
 
+    private int pairsToUse = 3; // valor por defecto
+
     private void Start()
     {
+        gameManager = Object.FindFirstObjectByType<MemoryGameManager>();
+    }
+
+    //  Llamado por el GameManager con el nivel actual
+    public void StartGame(int level)
+    {
+        ClearOldCards();
+
+        //  Definir cantidad de pares según nivel
+        switch (level)
+        {
+            case 1: pairsToUse = 3; break;
+            case 2: pairsToUse = 4; break;
+            case 3: pairsToUse = 5; break;
+            default: pairsToUse = 3; break;
+        }
+
         PrepareSprites();
         CreateCards();
         StartCoroutine(ShowAllThenHide());
-        gameManager = Object.FindFirstObjectByType<MemoryGameManager>();
-
     }
 
     IEnumerator ShowAllThenHide()
@@ -46,12 +63,13 @@ public class CardsController : MonoBehaviour
         canSelect = true;
     }
 
-
     private void PrepareSprites()
     {
         spritePairs.Clear();
 
-        for (int i = 0; i < sprites.Length; i++)
+        int count = Mathf.Min(pairsToUse, sprites.Length);
+
+        for (int i = 0; i < count; i++)
         {
             spritePairs.Add(sprites[i]);
             spritePairs.Add(sprites[i]);
@@ -75,6 +93,18 @@ public class CardsController : MonoBehaviour
         Debug.Log($"Total de cartas generadas: {cards.Count}");
     }
 
+    private void ClearOldCards()
+    {
+        foreach (Transform child in gridTransform)
+        {
+            Destroy(child.gameObject);
+        }
+
+        cards.Clear();
+        firstSelected = null;
+        secondSelected = null;
+        canSelect = false;
+    }
 
     public void SetSelected(Card_Memory card)
     {
@@ -122,8 +152,6 @@ public class CardsController : MonoBehaviour
         firstSelected = null;
         secondSelected = null;
         canSelect = true;
-
-        yield break;
     }
 
     void ShuffleSprites(List<Sprite> spriteList)
