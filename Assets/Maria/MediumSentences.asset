@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: MediumSentences
   m_EditorClassIdentifier: 
   sentences:
-  - 222
-  - 2222
-  - 2222
-  - 2222
-  - 2222
-  - 2222
+  - The monster hides behind the door
+  - "Don\u2019t drop your candy bag!"
+  - The witch is flying under the moon
+  - Something moved in the dark hall
+  - A black cat crossed my path
+  - Knock three times and wait
