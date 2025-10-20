@@ -170,6 +170,7 @@ public class TypingChallenge : MonoBehaviour
             nextLevelButton.gameObject.SetActive(false);
             quitButton.gameObject.SetActive(true);
         }
+        GameManager.Instance.AddCandies(2);
     }
 
     void GameOver(string reason)
@@ -182,6 +183,8 @@ public class TypingChallenge : MonoBehaviour
         restartButton.gameObject.SetActive(true);
         quitButton.gameObject.SetActive(true);
         nextLevelButton.gameObject.SetActive(false);
+        //reduce candies
+        GameManager.Instance.ReduceCandies(2);
     }
 
     public void RestartGame()
