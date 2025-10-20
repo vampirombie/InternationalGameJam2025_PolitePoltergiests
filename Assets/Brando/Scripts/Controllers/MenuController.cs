@@ -10,6 +10,7 @@ public class MenuController : MonoBehaviour
 
     public void ChangeScene()
     {
+       // sceneName = name;
         StartCoroutine(TimeToDelayChangeScene(sceneName));
         FadeController.instance.FadeIn();
     }
